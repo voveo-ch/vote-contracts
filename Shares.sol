@@ -3,45 +3,37 @@ pragma solidity >=0.0;
 import "./TokenErc20Ifc.sol";
 import "./owned.sol";
 
-
 contract Shares is TokenErc20, owned {
     mapping(address => uint256) shareholders;
     uint256 total = 0;
     bool public locked = false; // lock before assembly starts
 
-    function setShareholder(address shareholder, uint256 votes)
+    modifier open {
+        require(!locked, "configuration is already locked");
+        _;
+    }
+
+    function setShareholder(address shareholder, uint256 shares)
         public
+        open
         restrict
     {
-        require(!locked, "configuration is already locked");
-        require(
-            total >= shareholders[shareholder],
-            "internal error on total supply"
-        );
-        total -= shareholders[shareholder]; // remove previous shares (default: 0)
-        total += votes; // add current number of shares
-        shareholders[shareholder] = votes;
+        total = total + shares - shareholders[shareholder]; // remove previous add current
+        shareholders[shareholder] = shares;
     }
 
     function setShareholders(
-        address[] memory shareholder,
-        uint256[] memory votes
-    ) public restrict {
-        require(!locked, "configuration is already locked");
-        require(shareholder.length == votes.length, "array size missmatch");
-        for (uint256 i = 0; i < votes.length; ++i) {
-            require(
-                total >= shareholders[shareholder[i]],
-                "internal error on total supply"
-            );
-            total -= shareholders[shareholder[i]]; // remove previous shares (default: 0)
-            total += votes[i]; // add current number of shares
-            shareholders[shareholder[i]] = votes[i];
+        address[] memory _shareholders,
+        uint256[] memory _shares
+    ) public open restrict {
+        require(_shareholders.length == _shares.length, "array size missmatch");
+        for (uint256 i = 0; i < _shares.length; ++i) {
+            total = total + _shares[i] - shareholders[_shareholders[i]]; // remove previous add current
+            shareholders[_shareholders[i]] = _shares[i];
         }
     }
 
-    function lock() public restrict {
-        require(!locked, "configuration is already locked");
+    function lock() public open restrict {
         locked = true;
     }
 

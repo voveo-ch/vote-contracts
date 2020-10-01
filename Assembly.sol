@@ -1,39 +1,52 @@
 pragma solidity >=0.0;
 
 import "./owned.sol";
-import "./hasapi.sol";
-import "./Shares.sol";
-import "./VotingIfc.sol";
+import "./signed.sol";
+import "./LibAssembly.sol";
 
-contract Assembly is owned, hasapi {
-    Shares public shares; // shareholder token
-    mapping(string => address) public registrations; // users that registered, maps secret to address
-    mapping(address => string) public shareholders; // list of registered shareholders
-    string[] public secrets; // list of registered secrets
-    address[] public votings; // list of votings
-    string public identifier; // you my set any text here, e.w. th ecompany name
+contract Assembly is owned, signed {
+    using LibAssembly for LibAssembly.Data;
+    LibAssembly.Data private data;
 
-    constructor(string memory _identifier, address _api) public hasapi(_api) {
-        identifier = _identifier;
-        shares = new Shares();
+    constructor(
+        string memory _identifier,
+        address _signatory
+    ) public signed(_signatory) {
+        data.construct(_identifier);
+    }
+
+    // getter
+
+    function identifier() public view returns (string memory) {
+        return data.identifier;
+    }
+
+    function registrations(string memory s) public view returns (address) {
+        return data.registrations[s];
+    }
+
+    function shareholders(address a) public view returns (string memory) {
+        return data.shareholders[a];
+    }
+
+    function secrets(uint256 i) public view returns (string memory) {
+        return data.secrets[i];
+    }
+
+    function votings(uint256 i) public view returns (address) {
+        return data.votings[i];
     }
 
     function numSecrets() public view returns (uint256) {
-        return secrets.length;
+        return data.secrets.length;
     }
 
     function numVotings() public view returns (uint256) {
-        return votings.length;
+        return data.votings.length;
     }
 
-    function verify(
-        string memory secret,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) public pure returns (address sender) {
-        bytes32 hash = keccak256(bytes(secret));
-        sender = ecrecover(hash, v, r, s);
+    function shares() public view returns (address) {
+        return address(data.shares);
     }
 
     // shareholder's access, security by signed messages
@@ -43,48 +56,61 @@ contract Assembly is owned, hasapi {
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) public apionly {
-        require(bytes(secret).length > 0, "not a valid secret");
-        address shareholder = verify(secret, v, r, s);
-        require(
-            shareholder != address(0x0),
-            "identification failed due to invalid signature"
-        );
-        require(
-            registrations[secret] == address(0x0),
-            "secret has already been used"
-        );
-        require(
-            bytes(shareholders[shareholder]).length == 0,
-            "you are already registered"
-        );
-        registrations[secret] = shareholder;
-        shareholders[shareholder] = secret;
-        secrets.push(secret);
+    ) public restrict {
+        data.register(secret, address(this), v, r, s);
     }
 
     // administration, restricted to assembly owner
 
-    function setShareholder(address shareholder, uint256 votes)
+    function setShareholder(
+        address _shareholder,
+        uint256 _shares,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    )
         public
         restrict
+        issigned(abi.encode(_shareholder, _shares, address(this)), v, r, s)
     {
-        shares.setShareholder(shareholder, votes);
+        data.setShareholder(_shareholder, _shares);
     }
 
     function setShareholders(
-        address[] memory shareholder,
-        uint256[] memory votes
-    ) public restrict {
-        shares.setShareholders(shareholder, votes);
+        address[] memory _shareholders,
+        uint256[] memory _shares,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    )
+        public
+        restrict
+        issigned(abi.encode(_shareholders, _shares, address(this)), v, r, s)
+    {
+        data.setShareholders(_shareholders, _shares);
     }
 
-    function addVoting(VotingIfc voting) public restrict {
-        require(shares == voting.tokenErc20(), "wrong token in voting");
-        votings.push(address(voting));
+    event votingCreated(address);
+
+    function newVoting(
+        string memory title,
+        string memory proposal,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    )
+        public
+        restrict
+        issigned(abi.encode(title, proposal, address(this)), v, r, s)
+    {
+        emit votingCreated(data.newVoting(title, proposal, signatory, owner));
     }
 
-    function lock() public restrict {
-        shares.lock();
+    function lock(
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) public restrict issigned(abi.encode(address(this)), v, r, s) {
+        data.lock();
     }
 }
