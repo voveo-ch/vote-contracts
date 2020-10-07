@@ -61,7 +61,7 @@ contract Voting is VotingIfc, owned, signed {
     }
 
     function currenttime() public view returns (uint256) {
-        return now;
+        return block.timestamp;
     }
 
     function aye() public view isclosed returns (uint256) {
@@ -80,7 +80,7 @@ contract Voting is VotingIfc, owned, signed {
         return data.standDown;
     }
 
-    function tokenErc20() public view returns (TokenErc20) {
+    function tokenErc20() public override view returns (TokenErc20) {
         return data.tokenErc20;
     }
 
@@ -103,11 +103,11 @@ contract Voting is VotingIfc, owned, signed {
     }
 
     function closed() public view returns (bool) {
-        return data.starttime > 0 && data.endtime > 0 && now >= data.endtime;
+        return data.starttime > 0 && data.endtime > 0 && block.timestamp >= data.endtime;
     }
 
     function started() public view returns (bool) {
-        return data.starttime > 0 && data.endtime > 0 && now >= data.starttime;
+        return data.starttime > 0 && data.endtime > 0 && block.timestamp >= data.starttime;
     }
 
     function running() public view returns (bool) {
