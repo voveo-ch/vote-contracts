@@ -34,15 +34,4 @@ contract owned {
         owner.transfer(address(this).balance);
     }
 
-    // get anonymous money in payable fallback
-    event ownedPaymentReceived(owned receiver, uint256 amount);
-    event ownedFallback(owned receiver);
-    /*receive*/function() /*virtual*/ external payable {
-        if (msg.value>0) {
-            emit ownedPaymentReceived(this, msg.value);
-        } else {
-            emit ownedFallback(this);
-        }
-    }
-
 }
