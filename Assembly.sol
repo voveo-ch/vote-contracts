@@ -87,7 +87,7 @@ contract Assembly is owned, signed {
         restrict
         issigned(abi.encode(_shareholders, _shares, address(this)), v, r, s)
     {
-        data.setShareholders(_shareholders, _shares);
+        data.setShareholders(_shareholders, _shares); 
     }
 
     event votingCreated(address);
